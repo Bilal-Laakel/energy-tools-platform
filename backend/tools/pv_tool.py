@@ -3,41 +3,33 @@ import requests
 
 def pv_correction(latitude: float, longitude: float, tilt: float, azimuth: float) -> dict:
     """
-    Calcule la production PV spécifique (kWh/kWp/an) et le facteur de correction
-    en utilisant l'API PVGIS en temps réel.
+    Calcule le facteur de correction PV en utilisant l'API PVGIS via un proxy
+    pour contourner les restrictions réseau de Render.
     """
-    url = "https://re.jrc.ec.europa.eu/api/v5_2/PVcalc"
-    params = {
-        "lat": latitude,
-        "lon": longitude,
-        "angle": tilt,
-        "aspect": azimuth,
-        "peakpower": 1,
-        "loss": 14,
-        "outputformat": "json"
-    }
+    base_url = "https://re.jrc.ec.europa.eu/api/v5_2/PVcalc"
 
-    # Requête API PVGIS
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
+    def call_pvgis(angle: float, aspect: float):
+        # Passer par un proxy pour éviter les blocages CORS/timeout Render
+        proxy_url = f"https://corsproxy.io/?{base_url}?lat={latitude}&lon={longitude}&angle={angle}&aspect={aspect}&peakpower=1&loss=14&outputformat=json"
+        print(f"Appel PVGIS via proxy : {proxy_url}")
+        response = requests.get(proxy_url, timeout=20)
+        response.raise_for_status()
+        return response.json()
 
-    # Vérification que les données attendues existent
-    try:
-        production_annuelle = data["outputs"]["totals"]["fixed"]["E_y"]
-    except KeyError:
-        raise ValueError("Réponse PVGIS invalide. Données manquantes.")
+    # --- Simulation réelle ---
+    data_reelle = call_pvgis(tilt, azimuth)
+    prod_reelle = data_reelle["outputs"]["totals"]["fixed"]["E_y"]
 
-    # Inclinaison optimale (si disponible)
-    inclinaison_optimale = data.get("inputs", {}).get("angle", None)
+    # --- Simulation optimale ---
+    data_opt = call_pvgis(35, 180)  # Inclinaison optimale 35°, azimuth plein sud
+    prod_opt = data_opt["outputs"]["totals"]["fixed"]["E_y"]
 
-    # Calcul du facteur de correction (ici on renvoie simplement 100% car PVGIS donne la valeur directe)
-    facteur_correction = 100.0
+    facteur_correction = (prod_reelle / prod_opt) * 100
 
     return {
-        "production_annuelle_kWh_kWp": round(production_annuelle, 2),
+        "production_annuelle_kWh_kWp": round(prod_reelle, 2),
+        "production_optimale_kWh_kWp": round(prod_opt, 2),
         "inclinaison_utilisee": tilt,
         "azimuth_utilise": azimuth,
-        "inclinaison_optimale": inclinaison_optimale,
-        "facteur_correction": facteur_correction
+        "facteur_correction": round(facteur_correction, 2)
     }
