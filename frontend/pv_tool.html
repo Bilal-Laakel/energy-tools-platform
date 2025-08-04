@@ -34,13 +34,9 @@
   <p id="result"></p>
 
   <script>
-    // 🔥 Attendre que tout le DOM soit chargé avant d'exécuter le script
     document.addEventListener("DOMContentLoaded", () => {
-      console.log("DOM entièrement chargé, script exécuté");
-
       const form = document.getElementById("pv-form");
-      console.log("Form trouvé ?", form);
-
+      
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         console.log("Formulaire soumis");
@@ -50,24 +46,25 @@
         const tilt = parseFloat(document.getElementById("tilt").value);
         const azimuth = parseFloat(document.getElementById("azimuth").value);
 
+        // 🔥 URL relative => fonctionne en local ET en ligne
         const url = `/pv-tool?latitude=${lat}&longitude=${lon}&tilt=${tilt}&azimuth=${azimuth}`;
         console.log("Requête envoyée à :", url);
 
         try {
           const response = await fetch(url, { method: "POST" });
-          if (!response.ok) throw new Error("Erreur API");
+          if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
 
           const data = await response.json();
           console.log("Réponse API :", data);
 
           document.getElementById("result").innerText =
-            `Production annuelle : ${data.production_annuelle_kWh_kWp} kWh/kWp/an\n` +
+            `Production annuelle réelle : ${data.production_annuelle_kWh_kWp} kWh/kWp/an\n` +
+            `Production optimale : ${data.production_optimale_kWh_kWp} kWh/kWp/an\n` +
             `Inclinaison utilisée : ${data.inclinaison_utilisee}°\n` +
-            `Inclinaison optimale : ${data.inclinaison_optimale ?? "Non fournie"}°\n` +
             `Azimuth utilisé : ${data.azimuth_utilise}°\n` +
             `Facteur de correction : ${data.facteur_correction} %`;
         } catch (err) {
-          console.error(err);
+          console.error("Erreur détectée :", err);
           document.getElementById("result").innerText = "Erreur lors de l'appel API.";
         }
       });
