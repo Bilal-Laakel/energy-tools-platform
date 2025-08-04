@@ -50,7 +50,7 @@
         const tilt = parseFloat(document.getElementById("tilt").value);
         const azimuth = parseFloat(document.getElementById("azimuth").value);
 
-        const url = `http://127.0.0.1:8000/pv-tool?latitude=${lat}&longitude=${lon}&tilt=${tilt}&azimuth=${azimuth}`;
+        const url = `/pv-tool?latitude=${lat}&longitude=${lon}&tilt=${tilt}&azimuth=${azimuth}`;
         console.log("Requête envoyée à :", url);
 
         try {
