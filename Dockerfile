@@ -6,6 +6,9 @@ COPY ./backend /app/backend
 COPY ./frontend /app/frontend
 COPY ./requirements.txt /app
 
+# Ajouter le chemin backend au PYTHONPATH
+ENV PYTHONPATH=/app/backend
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
