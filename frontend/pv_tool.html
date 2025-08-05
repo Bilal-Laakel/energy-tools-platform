@@ -39,7 +39,6 @@
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        console.log("Formulaire soumis");
 
         const lat = parseFloat(document.getElementById("lat").value);
         const lon = parseFloat(document.getElementById("lon").value);
@@ -47,27 +46,34 @@
         const azimuth = parseFloat(document.getElementById("azimuth").value);
 
         try {
-          // Appel backend FastAPI (Render)
-          const url = `/pv-tool?latitude=${lat}&longitude=${lon}&tilt=${tilt}&azimuth=${azimuth}`;
-          console.log("Requête envoyée à :", url);
+          // --- Appel direct à PVGIS pour la production réelle ---
+          const urlReelle = `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=${lat}&lon=${lon}&angle=${tilt}&aspect=${azimuth}&peakpower=1&loss=14&outputformat=json`;
+          console.log("Requête PVGIS (réelle):", urlReelle);
+          const resReelle = await fetch(urlReelle);
+          if (!resReelle.ok) throw new Error("Erreur API PVGIS (réelle)");
+          const dataReelle = await resReelle.json();
+          const prodReelle = dataReelle.outputs.totals.fixed.E_y;
 
-          const response = await fetch(url, { method: "POST" });
-          if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
+          // --- Appel direct à PVGIS pour la production optimale ---
+          const urlOptimale = `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=${lat}&lon=${lon}&angle=35&aspect=180&peakpower=1&loss=14&outputformat=json`;
+          console.log("Requête PVGIS (optimale):", urlOptimale);
+          const resOptimale = await fetch(urlOptimale);
+          if (!resOptimale.ok) throw new Error("Erreur API PVGIS (optimale)");
+          const dataOptimale = await resOptimale.json();
+          const prodOptimale = dataOptimale.outputs.totals.fixed.E_y;
 
-          const data = await response.json();
-          console.log("Réponse API :", data);
+          // --- Calcul du facteur de correction ---
+          const facteur = (prodReelle / prodOptimale) * 100;
 
-          // Affichage des résultats
+          // --- Affichage des résultats ---
           document.getElementById("result").innerText =
-            `Production réelle : ${data.production_annuelle_kWh_kWp} kWh/kWp/an\n` +
-            `Production optimale : ${data.production_optimale_kWh_kWp} kWh/kWp/an\n` +
-            `Inclinaison utilisée : ${data.inclinaison_utilisee}°\n` +
-            `Azimuth utilisé : ${data.azimuth_utilise}°\n` +
-            `Facteur de correction : ${data.facteur_correction} %`;
+            `Production réelle : ${prodReelle.toFixed(2)} kWh/kWp/an\n` +
+            `Production optimale : ${prodOptimale.toFixed(2)} kWh/kWp/an\n` +
+            `Facteur de correction : ${facteur.toFixed(2)} %`;
 
         } catch (err) {
-          console.error("Erreur détectée :", err);
-          document.getElementById("result").innerText = "Erreur lors de l'appel API.";
+          console.error(err);
+          document.getElementById("result").innerText = "Erreur lors de l'appel direct à PVGIS.";
         }
       });
     });
